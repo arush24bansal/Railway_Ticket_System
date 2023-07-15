@@ -8,9 +8,10 @@ import sys
 import csv
 import mysql.connector
 from mysql.connector import Error
-import queries as q
+import Core.create_queries as q
+import Core.utils as u
 import os
-import pandas as pd
+from termcolor import cprint
 
 def create_connection(hostname, username, user_pwd, *argv):
     connection = None
@@ -22,14 +23,14 @@ def create_connection(hostname, username, user_pwd, *argv):
               password=user_pwd,
               database=argv[0]
             )
-            print("Database Connection Successfull")
+            cprint("Database Connection Successfull", "blue", "on_white")
         else:
             connection = mysql.connector.connect(
               host=hostname,
               user=username,
               password=user_pwd
             )
-            print("Server Connection Successfull")
+            cprint("Server Connection Successfull", "blue", "on_white")
     except Error as err:
             print(f"error: {err}")
             sys.exit()
@@ -42,12 +43,12 @@ def create_database(connection, db_name):
         
     try:
         cursor.execute(f"CREATE DATABASE {db_name}")
-        print("Database created successfully")
+        cprint("Database created successfully", "blue", "on_white")
     except Error as err:
         if err.errno == 1007:
-            print("Database already exists")
+            cprint("Database already exists", "blue", "on_white")
         else:
-            errHandler(err, cursor, connection)
+            u.exitHandler(cursor, connection, err)
     cursor.close()
         
     
@@ -67,14 +68,14 @@ def create_tables(connection):
         try:
             cursor.execute(tables[i])
             if tables[i+1] in data_tables:
-                print(f"populating {tables[i+1]}. This may take a while")
+                cprint(f"populating {tables[i+1]}. This may take a while", "grey")
                 populate_table(connection, tables[i+1])
-            print(f"{tables[i+1]} table created")
+            cprint(f"{tables[i+1]} table created", "blue", "on_white")
         except Error as err:
             if err.errno == 1050:
-                print(f"{tables[i+1]} table already exists")
+                cprint(f"{tables[i+1]} table already exists", "blue", "on_white")
             else:
-                errHandler(err, cursor, connection)
+                u.exitHandler(cursor, connection, err)
     cursor.close()
 
 
@@ -96,17 +97,10 @@ def populate_table(connection, tableName):
                     cursor.execute(insert + ", ".join(values) + ")")
                 except Error as err:
                     cursor.execute(f"DROP TABLE {tableName}")
-                    errHandler(err, cursor, connection)
+                    u.exitHandler(cursor, connection, err)
     except IOError as err:
         cursor.execute(f"DROP TABLE {tableName}")
-        errHandler(err, cursor, connection)
+        u.exitHandler(cursor, connection, err)
         
     connection.commit()
     cursor.close()
-
-
-def errHandler(msg, cursor, connection):
-    print(f"Error: {msg}")
-    cursor.close()
-    connection.close()
-    sys.exit()

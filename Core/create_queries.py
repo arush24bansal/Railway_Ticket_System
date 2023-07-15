@@ -43,9 +43,10 @@ create_routes = """
 
 create_members = """
     CREATE TABLE members(
-        member_id int NOT NULL,
+        member_id int NOT NULL AUTO_INCREMENT,
         phone_no varchar(10) NOT NULL,
         member_name varchar(100) NOT NULL,
+        password varchar(240) NOT NULL, 
         CONSTRAINT primary_id PRIMARY KEY (member_id),
         CONSTRAINT unique_member UNIQUE (phone_no)
     )
