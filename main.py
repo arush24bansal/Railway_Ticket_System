@@ -25,6 +25,9 @@ cprint("SET UP COMPLETE", "green", attrs=["bold"])
 print("\n" * 5)
 cprint("Welcome to Indian Railways booking system", "magenta", attrs=["bold"])
 member_id = i.auth(db_con)
+print(member_id)
+
 
 # Close Server Connection
+print("Closing Connection")
 db_con.close()
