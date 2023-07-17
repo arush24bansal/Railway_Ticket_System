@@ -4,7 +4,7 @@ Spyder Editor
 
 This is a temporary script file.
 """
-import sys
+
 import csv
 import mysql.connector
 from mysql.connector import Error
@@ -13,27 +13,36 @@ import Core.utils as u
 import os
 from termcolor import cprint
 
-def create_connection(hostname, username, user_pwd, *argv):
+def setup():
+    
+    # Accessing Server and creating databse
+    server = create_connection("localhost", "root", "1804")
+    create_database(server, "railway")
+    server.close()
+    
+    # Creating Database Connection
+    database = create_connection("localhost", "root", "1804", "railway")
+    create_tables(database)
+    
+    cprint("SET UP COMPLETE", "green", attrs=["bold"])
+    
+    return database
+
+# Helper Functions   
+# =============================================================================
+
+def create_connection(hostname, username, user_pwd, db_name=False):
     connection = None
     try:
-        if len(argv) > 0:
-            connection = mysql.connector.connect(
-              host=hostname,
-              user=username,
-              password=user_pwd,
-              database=argv[0]
-            )
-            cprint("Database Connection Successfull", "blue", "on_white")
-        else:
-            connection = mysql.connector.connect(
-              host=hostname,
-              user=username,
-              password=user_pwd
-            )
-            cprint("Server Connection Successfull", "blue", "on_white")
+        connection = mysql.connector.connect(
+          host=hostname,
+          user=username,
+          password=user_pwd,
+          database= db_name if db_name else None
+        )
+        cprint(f"{'Database' if db_name else 'Server'} Connection Successfull", "blue", "on_white")
     except Error as err:
-            print(f"error: {err}")
-            sys.exit()
+            u.exitHandler(False, connection, err)
     return connection
 
 

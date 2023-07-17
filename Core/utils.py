@@ -12,5 +12,6 @@ def exitHandler(cursor, connection, msg=False):
         cprint(f"Error: {msg}", "red", attrs=["bold"])
     if cursor:
         cursor.close()
-    connection.close()
+    if connection:
+        connection.close()
     sys.exit()

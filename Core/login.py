@@ -11,13 +11,14 @@ from mysql.connector import Error
 
 
 def auth(connection):
+
+    cprint(f"{chr(10) * 5}Welcome to Indian Railways booking system", "magenta", attrs=["bold"])
     
     # Get Phone Number
     phone = get_phone()
     
     # Fetch User
     user = fetch_user(connection, phone)
-    print(user)
     
     if user:
         return login(user)
