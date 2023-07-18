@@ -8,6 +8,7 @@ Created on Thu Jul  6 16:14:27 2023
 import Core.setup as s
 import Core.login as l
 import Core.menu as i
+from termcolor import cprint
 
 database = s.setup()
 
@@ -18,5 +19,5 @@ while True:
         continue
     break
 
-print("Closing Proram")
+cprint("Closing Proram", "yellow", attrs=["bold"])
 database.close()
