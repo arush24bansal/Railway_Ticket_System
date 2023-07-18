@@ -6,7 +6,7 @@ Created on Mon Jul 17 15:30:35 2023
 """
 
 import Core.utils as u
-import time
+import Core.history as h
 from termcolor import cprint
 from mysql.connector import Error
 
@@ -24,8 +24,8 @@ def interface(connection, member_id):
     home_funcs = [
         "placeholder",
         train_search,
-        history,
-        cancel
+        h.history,
+        h.cancel
     ]
     
     while True:
@@ -57,144 +57,102 @@ def get_action(actions):
             continue
         return int(action)
     
+        
 # Train Search Functions
 # =============================================================================    
     
 def train_search(connection, member_id):
     
-    cprint("\n\n\n    Search Trains    ", "blue", "on_white")
+    cprint("\n\n\n    Search Trains    \n", "blue", "on_white")
     
-    search_actions = [
-        "1. Book",
-        "2. Search Again",
-        "3. Back"
-    ]    
-        
-    action = get_action(search_actions)
-    
-    if action == 3:
-        return True
-
-# History Function
-# =============================================================================
-
-def history(connection, member_id):
-    
-    cprint("\n\n\n    Bookings    \n", "blue", "on_white")
-    
-    query = f"""
-        SELECT
-            b.booking_id AS 'Booking ID',
-            t.train_name AS 'Train Name',
-            s1.station_name AS 'Source',
-            s2.station_name AS 'Destination',
-            b.no_of_tickets AS 'Tickets',
-            b.amount AS 'Amount'
-        FROM bookings b
-        JOIN stations s1
-        ON b.src_station_id = s1.station_id
-        JOIN stations s2
-        ON b.dest_station_id = s2.station_id
-        JOIN trains t
-        ON b.train_id = t.train_id
-        WHERE member_id = {member_id}
-        ORDER BY b.booking_id ASC
-    """
-    
-    cursor = connection.cursor()
-    
-    try:
-        cursor.execute(query)
-    except Error as err:
-        u.exitHandler(cursor, connection, err)
-        
-    headers = [header[0] for header in cursor.description]
-    bookings = [dict(zip(headers,row)) for row in cursor.fetchall()]
-    cursor.close()
-    
-    if len(bookings) == 0:
-        print("No Bookings to show\n")
-        time.sleep(3)
-        return True
-    
-    for booking in bookings:
-        for i, j in booking.items():
-            print(f"{i}: {j}")
-        print()
-    print("Press Enter to go back", end="")
-    input("")
-    return True
-
-# Cancel Function
-# =============================================================================    
-
-def cancel(connection, member_id):
-    
-    cprint("\n\n\n    Cancel Tickets    \n", "blue", "on_white")
-    
-    query = f"""
-        SELECT
-            b.booking_id AS 'Booking ID',
-            t.train_name AS 'Train Name',
-            s1.station_name AS 'Source',
-            s2.station_name AS 'Destination',
-            b.no_of_tickets AS 'Tickets',
-            b.amount AS 'Amount'
-        FROM bookings b
-        JOIN stations s1
-        ON b.src_station_id = s1.station_id
-        JOIN stations s2
-        ON b.dest_station_id = s2.station_id
-        JOIN trains t
-        ON b.train_id = t.train_id
-        WHERE member_id = {member_id}
-        AND DATE(b.train_start_date) > DATE(NOW())
-        ORDER BY b.booking_id ASC
-    """
-
-    cursor = connection.cursor()
-    
-    try:
-        cursor.execute(query)
-    except Error as err:
-        u.exitHandler(cursor, connection, err)
-        
-    headers = [header[0] for header in cursor.description]
-    bookings = [dict(zip(headers,row)) for row in cursor.fetchall()]
-    booking_ids = [sub['Booking ID'] for sub in bookings]
-    
-    if len(bookings) == 0:
-        print("No Upcoming Travels to show\n")
-        time.sleep(2)
-        return True
-    for booking in bookings:
-        for i, j in booking.items():
-            print(f"{i}: {j}")
-        print()
-    print("Enter Booking ID to delete a booking. Leave blank to go back")
     while True:
-        booking_id = input("Booking ID: ")
-        if len(booking_id) == 0:
-            return True
-        elif booking_id.isnumeric() and int(booking_id) in booking_ids:
-            break
-        cprint("Invalid booking ID! retry.", "red")
-    
-    
-    query = f"""
-        DELETE FROM bookings
-        WHERE member_id = {member_id}
-        AND booking_id = {booking_id}
-    """
-    
-    try:
-        cursor.execute(query)
-        connection.commit()
-        cprint("Booking Successfully Deleted", "green", attrs=["bold"])
-    except Error as err:
-        u.exitHandler(cursor, connection, err)
+        src_id = getStation("Source: ", connection)
+        dest_id = getStation("Destination: ", connection)
         
-    cursor.close()
-    return True
+        query = f"""
+            WITH cte AS (
+                SELECT
+                    r1.train_id,
+                    r2.distance - r1.distance AS 'distance',
+                    r1.dept_time AS 'departure',
+                    r2.arr_time AS 'arrival',
+                    r1.station_id AS 'dept_id',
+                    r2.station_id AS 'arr_id'
+                FROM routes r1
+                JOIN routes r2
+                ON r1.train_id = r2.train_id
+                AND r1.station_id = {src_id}
+                AND r2.station_id = {dest_id}
+                AND r1.serial_no < r2.serial_no
+            )
+
+            SELECT * FROM cte
+        """
+        cursor = connection.cursor()
+        try:
+            cursor.execute(query)
+        except Error as err:
+            u.exitHandler(cursor, connection, err)
+            
+        res = cursor.fetchall()
+        print(res)
+        
+        print("\n\nEnter Train ID to book. Enter 0 to start a new search. Leave blank to go back.")       
+        train_id = input("Train ID: ")
+        
+        if train_id == "0":
+            print("\n")
+            continue
+        elif len(train_id) == 0:
+            return True
+        else:
+            print("Book Tickets")
 
 
+
+def getStation(prompt, connection):
+    
+    cursor = connection.cursor()
+    
+    while True:
+        keyword = input(prompt)
+        
+        if not keyword.isalpha():
+            cprint("Invalid Keyword! Use alphabets only. Retry.", "red")
+            continue
+        
+        query = f"""
+            SELECT
+                CONCAT(station_name, ' (', station_code, ')') AS station,
+                station_id
+            FROM stations 
+            WHERE station_name LIKE '{keyword}%'
+        """
+        
+        try:
+            cursor.execute(query)
+        except Error as err:
+            u.exitHandler(cursor, connection, err)
+            
+        stations = cursor.fetchall()
+        cursor.close()
+        station_names = [sub[0] for sub in stations]
+        
+        if len(stations) == 0:
+            cprint("No results match Keyword! Retry.", "red")
+            continue
+        break
+    
+    for index, station in enumerate(station_names, start=1):
+        print(f"{index}. {station}")
+    
+    while True:
+        sr_no = input("Enter station sr no: ")
+        
+        if sr_no.isnumeric() and int(sr_no) in range(1, len(station_names) + 1):
+            break
+        else:
+            cprint("Invalid Sr No! Retry.", "red")
+    selected_stn = stations[int(sr_no) - 1]
+    cprint(f"{prompt} {selected_stn[0]}\n", "blue", attrs=["bold"])
+    return selected_stn[1]
