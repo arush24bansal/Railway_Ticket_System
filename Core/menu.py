@@ -5,6 +5,8 @@ Created on Mon Jul 17 15:30:35 2023
 @author: Arush
 """
 
+import re
+from datetime import date
 import Core.utils as u
 import Core.history as h
 import Core.queries.interface_queries as iq
@@ -55,11 +57,12 @@ def train_search(connection, member_id):
     cursor = connection.cursor()
     
     while True:
-        # Get Station IDs
+        # Get Filters
         src_id = getStation("Source", cursor, connection)
         dest_id = getStation("Destination", cursor, connection)
+        dateVal = getDay()
         # Get Trains
-        query = iq.fetch_trains(src_id, dest_id)
+        query = iq.fetch_trains(src_id, dest_id, dateVal)
         try:
             cursor.execute(query)
         except Error as err:
@@ -69,9 +72,10 @@ def train_search(connection, member_id):
         if len(trains) == 0: 
             u.print_error("No trains found. Try Again with different filters")
             
-        print(trains)
+        for i in trains:
+            print(i)
         
-        u.print_prompt("Enter Train ID to book.\n0 to start a new search.\nLeave blank to go back.")       
+        u.print_prompt("Enter Train ID to book.\n0 to start a new search.\nLeave blank to go to Home.")       
         train_id = input("Enter: ")
         
         if train_id == "0":
@@ -129,3 +133,19 @@ def getStation(prompt, cursor, connection):
             else:
                 u.print_retry("Invalid Sr No!")
                 continue
+
+def getDay():
+    u.print_prompt("Enter Date in DD/MM/YYYY format.")
+    checkString = "^(0?[1-9]|[1|2][0-9]|3[0|1])/(0?\d|1[0-2])/20\d{2}$"
+    while True:
+        dateVal = input("Enter:")
+        if re.search(checkString, dateVal):
+            d, m, y = [int(i) for i in dateVal.split("/")]
+            try:
+                return date(y, m, d)
+            except:
+                # Do Nothing
+                True
+        u.print_retry("Invalid Date.")
+        
+    

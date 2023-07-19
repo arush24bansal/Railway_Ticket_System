@@ -10,7 +10,8 @@ create_trains = """
         train_id int NOT NULL,
         train_no varchar(30) NOT NULL,
         train_name varchar(50) NOT NULL,
-        op_days varchar(15),
+        op_days varchar(15) NOT NULL,
+        weekdays int NOT NULL,
         CONSTRAINT unique_train UNIQUE (train_no),
         CONSTRAINT primary_id PRIMARY KEY (train_id)
     )

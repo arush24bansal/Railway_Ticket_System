@@ -5,25 +5,34 @@ Created on Wed Jul 19 11:51:39 2023
 @author: Arush
 """
 
-def fetch_trains(src_id, dest_id):
+def fetch_trains(src_id, dest_id, date):
     return f"""
         WITH cte AS (
             SELECT
                 r1.train_id,
                 r2.distance - r1.distance AS 'distance',
-                r1.dept_time AS 'departure',
-                r2.arr_time AS 'arrival',
+                r1.dept_time,
+                r2.arr_time,
                 r1.station_id AS 'dept_id',
-                r2.station_id AS 'arr_id'
+                r2.station_id AS 'arr_id',
+                r1.journey_day - 1 AS 'daynum'
             FROM routes r1
             JOIN routes r2
             ON r1.train_id = r2.train_id
             AND r1.station_id = {src_id}
             AND r2.station_id = {dest_id}
             AND r1.serial_no < r2.serial_no
+        ), cte2 AS (
+            SELECT c.*, t.op_days
+            FROM cte c
+            JOIN trains t
+            ON c.train_id = t.train_id
+            AND t.weekdays = WEEKDAY(
+                DATE_ADD('{date}',  INTERVAL (-1 * c.daynum) DAY)
+            )
         )
 
-        SELECT * FROM cte
+        SELECT * FROM cte2
     """
 
 
