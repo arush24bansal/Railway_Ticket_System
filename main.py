@@ -8,9 +8,11 @@ Created on Thu Jul  6 16:14:27 2023
 import Core.setup as s
 import Core.login as l
 import Core.menu as i
-from termcolor import cprint
+import Core.utils as u
 
 database = s.setup()
+
+u.print_title("Welcome to Indian Railways Reservation system")
 
 # Maintain Session
 while True:
@@ -19,5 +21,5 @@ while True:
         continue
     break
 
-cprint("Closing Proram", "yellow", attrs=["bold"])
+print("Closing Program")
 database.close()

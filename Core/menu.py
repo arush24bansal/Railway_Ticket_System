@@ -7,13 +7,13 @@ Created on Mon Jul 17 15:30:35 2023
 
 import Core.utils as u
 import Core.history as h
-from termcolor import cprint
+import Core.queries.interface_queries as iq
 from mysql.connector import Error
 
 
 def interface(connection, member_id):
     
-    home_actions = [
+    actions = [
         "1. Find a Train",
         "2. Booking History",
         "3. Cancel Ticket",
@@ -21,87 +21,61 @@ def interface(connection, member_id):
         "5. Exit"
     ]
     
-    home_funcs = [
-        "placeholder",
-        train_search,
-        h.history,
-        h.cancel
-    ]
+    functions = [train_search, h.history, h.cancel]
     
     while True:
-        cprint("\n\n\n    Home    ", "blue", "on_white")
+        u.print_header("Home")
         
-        action = get_action(home_actions)
+        for i in actions:
+            print(i)
+        u.print_prompt("Enter Serial Number of action you want to perform")
+        
+        while True:
+            action = input("Enter: ")
+            if action.isnumeric() and int(action) in range(1, len(actions) + 1):
+                break
+            u.print_error("Please enter valid action")
     
-        if action == 4:
+        if action == "4":
             return True
-        elif action == 5:
+        elif action == "5":
             return False 
-    
-        if home_funcs[action](connection, member_id):
+        
+        if functions[int(action) - 1](connection, member_id):
             continue    
         break
     
-# Helper Functions   
-# =============================================================================
-
-def get_action(actions):
-    
-    for i in actions:
-        print(i)
-   
-    while True:
-        action = input("Action: ")
-        if not action.isnumeric() or int(action) not in range(1, len(actions) + 1):
-            cprint("Please enter valid action", "yellow", attrs=["bold"])
-            continue
-        return int(action)
-    
-        
+     
 # Train Search Functions
 # =============================================================================    
     
 def train_search(connection, member_id):
     
-    cprint("\n\n\n    Search Trains    \n", "blue", "on_white")
+    u.print_header("Search Trains")
+    cursor = connection.cursor()
     
     while True:
-        src_id = getStation("Source: ", connection)
-        dest_id = getStation("Destination: ", connection)
-        
-        query = f"""
-            WITH cte AS (
-                SELECT
-                    r1.train_id,
-                    r2.distance - r1.distance AS 'distance',
-                    r1.dept_time AS 'departure',
-                    r2.arr_time AS 'arrival',
-                    r1.station_id AS 'dept_id',
-                    r2.station_id AS 'arr_id'
-                FROM routes r1
-                JOIN routes r2
-                ON r1.train_id = r2.train_id
-                AND r1.station_id = {src_id}
-                AND r2.station_id = {dest_id}
-                AND r1.serial_no < r2.serial_no
-            )
-
-            SELECT * FROM cte
-        """
-        cursor = connection.cursor()
+        # Get Station IDs
+        src_id = getStation("Source", cursor, connection)
+        dest_id = getStation("Destination", cursor, connection)
+        # Get Trains
+        query = iq.fetch_trains(src_id, dest_id)
         try:
             cursor.execute(query)
         except Error as err:
             u.exitHandler(cursor, connection, err)
-            
-        res = cursor.fetchall()
-        print(res)
+        trains = cursor.fetchall()
         
-        print("\n\nEnter Train ID to book. Enter 0 to start a new search. Leave blank to go back.")       
-        train_id = input("Train ID: ")
+        if len(trains) == 0: 
+            u.print_error("No trains found. Try Again with different filters")
+            
+        print(trains)
+        
+        u.print_prompt("Enter Train ID to book.\n0 to start a new search.\nLeave blank to go back.")       
+        train_id = input("Enter: ")
         
         if train_id == "0":
-            print("\n")
+            print()
             continue
         elif len(train_id) == 0:
             return True
@@ -110,49 +84,48 @@ def train_search(connection, member_id):
 
 
 
-def getStation(prompt, connection):
-    
-    cursor = connection.cursor()
+def getStation(prompt, cursor, connection):
     
     while True:
-        keyword = input(prompt)
+        # Get Keyword for Search
+        keyword = input(f"{prompt}: ")
         
-        if not keyword.isalpha():
-            cprint("Invalid Keyword! Use alphabets only. Retry.", "red")
+        if not keyword.isalpha() or len(keyword) < 3:
+            u.print_retry("Use alphabets only. Enter minimum 3 letters.")
             continue
         
-        query = f"""
-            SELECT
-                CONCAT(station_name, ' (', station_code, ')') AS station,
-                station_id
-            FROM stations 
-            WHERE station_name LIKE '{keyword}%'
-        """
+        # Query for Stations
+        query = iq.fetch_stations(keyword)
         
         try:
             cursor.execute(query)
         except Error as err:
             u.exitHandler(cursor, connection, err)
-            
+        
         stations = cursor.fetchall()
-        cursor.close()
-        station_names = [sub[0] for sub in stations]
-        
         if len(stations) == 0:
-            cprint("No results match Keyword! Retry.", "red")
+            u.print_retry("No results match Keyword!")
             continue
-        break
-    
-    for index, station in enumerate(station_names, start=1):
-        print(f"{index}. {station}")
-    
-    while True:
-        sr_no = input("Enter station sr no: ")
         
-        if sr_no.isnumeric() and int(sr_no) in range(1, len(station_names) + 1):
-            break
-        else:
-            cprint("Invalid Sr No! Retry.", "red")
-    selected_stn = stations[int(sr_no) - 1]
-    cprint(f"{prompt} {selected_stn[0]}\n", "blue", attrs=["bold"])
-    return selected_stn[1]
+        # Print Station names
+        station_names = [sub[0] for sub in stations]
+        for index, station in enumerate(station_names, start=1):
+            print(f"{index}. {station}")
+        
+        # Select from the station names
+        u.print_prompt("Enter Sr No. to select station.\nEnter 0 to make new search.")
+        
+        while True:
+            
+            sr_no = input("Enter: ")
+            
+            if sr_no == "0":
+                print()
+                break
+            if sr_no.isnumeric() and int(sr_no) in range(1, len(station_names) + 1):
+                selected_stn = stations[int(sr_no) - 1]
+                u.print_success(f"{prompt}: {selected_stn[0]}\n")
+                return selected_stn[1]
+            else:
+                u.print_retry("Invalid Sr No!")
+                continue

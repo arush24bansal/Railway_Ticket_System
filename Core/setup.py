@@ -6,12 +6,12 @@ This is a temporary script file.
 """
 
 import csv
+import os
 import mysql.connector
 from mysql.connector import Error
-import Core.create_queries as q
+import Core.queries.create_queries as q
 import Core.utils as u
-import os
-from termcolor import cprint
+
 
 def setup():
     
@@ -24,7 +24,7 @@ def setup():
     database = create_connection("localhost", "root", "1804", "railway")
     create_tables(database)
     
-    cprint("SET UP COMPLETE", "green", attrs=["bold"])
+    u.print_success("SET UP COMPLETE")
     
     return database
 
@@ -40,9 +40,9 @@ def create_connection(hostname, username, user_pwd, db_name=False):
           password=user_pwd,
           database= db_name if db_name else None
         )
-        cprint(f"{'Database' if db_name else 'Server'} Connection Successfull", "blue", "on_white")
+        print(f"{'Database' if db_name else 'Server'} Connection Successfull")
     except Error as err:
-            u.exitHandler(False, connection, err)
+        u.exitHandler(False, connection, err)
     return connection
 
 
@@ -52,11 +52,9 @@ def create_database(connection, db_name):
         
     try:
         cursor.execute(f"CREATE DATABASE {db_name}")
-        cprint("Database created successfully", "blue", "on_white")
+        print("Database created successfully")
     except Error as err:
-        if err.errno == 1007:
-            cprint("Database already exists", "blue", "on_white")
-        else:
+        if err.errno != 1007:
             u.exitHandler(cursor, connection, err)
     cursor.close()
         
@@ -77,13 +75,11 @@ def create_tables(connection):
         try:
             cursor.execute(tables[i])
             if tables[i+1] in data_tables:
-                cprint(f"populating {tables[i+1]}. This may take a while", "grey")
+                print(f"populating {tables[i+1]}. This may take a while")
                 populate_table(connection, tables[i+1])
-            cprint(f"{tables[i+1]} table created", "blue", "on_white")
+            print(f"{tables[i+1]} table created")
         except Error as err:
-            if err.errno == 1050:
-                cprint(f"{tables[i+1]} table already exists", "blue", "on_white")
-            else:
+            if err.errno != 1050:
                 u.exitHandler(cursor, connection, err)
     cursor.close()
 

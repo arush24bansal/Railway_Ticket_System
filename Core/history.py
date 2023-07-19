@@ -6,33 +6,17 @@ Created on Tue Jul 18 13:47:56 2023
 """
 
 import Core.utils as u
-import time
-from termcolor import cprint
+import Core.queries.interface_queries as iq
 from mysql.connector import Error
+import time
+
 
 def history(connection, member_id):
     
-    cprint("\n\n\n    Bookings    \n", "blue", "on_white")
+    u.print_header("Bookings")
     
-    query = f"""
-        SELECT
-            b.booking_id AS 'Booking ID',
-            t.train_name AS 'Train Name',
-            s1.station_name AS 'Source',
-            s2.station_name AS 'Destination',
-            b.no_of_tickets AS 'Tickets',
-            b.amount AS 'Amount'
-        FROM bookings b
-        JOIN stations s1
-        ON b.src_station_id = s1.station_id
-        JOIN stations s2
-        ON b.dest_station_id = s2.station_id
-        JOIN trains t
-        ON b.train_id = t.train_id
-        WHERE member_id = {member_id}
-        ORDER BY b.booking_id ASC
-    """
-    
+    # Get Bookings
+    query = iq.bookings_history(member_id)
     cursor = connection.cursor()
     
     try:
@@ -44,48 +28,21 @@ def history(connection, member_id):
     bookings = [dict(zip(headers,row)) for row in cursor.fetchall()]
     cursor.close()
     
-    if len(bookings) == 0:
-        print("No Bookings to show\n")
-        time.sleep(2)
+    if print_bookings(bookings):
         return True
     
-    for booking in bookings:
-        for i, j in booking.items():
-            print(f"{i}: {j}")
-        print()
-    print("Press Enter to go back", end="")
+    
+    u.print_prompt("Press Enter to go back")
     input("")
     return True
-
-
-
-# Cancel Function
-# =============================================================================    
+    
 
 def cancel(connection, member_id):
     
-    cprint("\n\n\n    Cancel Tickets    \n", "blue", "on_white")
+    u.print_header("Cancel Tickets")
     
-    query = f"""
-        SELECT
-            b.booking_id AS 'Booking ID',
-            t.train_name AS 'Train Name',
-            s1.station_name AS 'Source',
-            s2.station_name AS 'Destination',
-            b.no_of_tickets AS 'Tickets',
-            b.amount AS 'Amount'
-        FROM bookings b
-        JOIN stations s1
-        ON b.src_station_id = s1.station_id
-        JOIN stations s2
-        ON b.dest_station_id = s2.station_id
-        JOIN trains t
-        ON b.train_id = t.train_id
-        WHERE member_id = {member_id}
-        AND DATE(b.train_start_date) > DATE(NOW())
-        ORDER BY b.booking_id ASC
-    """
-
+    #Get Bookings
+    query = iq.upcoming_bookings(member_id)
     cursor = connection.cursor()
     
     try:
@@ -97,26 +54,41 @@ def cancel(connection, member_id):
     bookings = [dict(zip(headers,row)) for row in cursor.fetchall()]
     booking_ids = [sub['Booking ID'] for sub in bookings]
     
-    if len(bookings) == 0:
-        print("No Upcoming Travels to show\n")
-        time.sleep(2)
+    if print_bookings(bookings):
         return True
-    for booking in bookings:
-        for i, j in booking.items():
-            print(f"{i}: {j}")
-        print()
-    print("Enter Booking ID to delete a booking. Leave blank to go back")
+    
+    u.print_prompt("Enter Booking ID to delete a booking.\nLeave blank to go back")
     while True:
-        booking_id = input("Booking ID: ")
+        booking_id = input("Enter: ")
         if len(booking_id) == 0:
             return True
         elif booking_id.isnumeric() and int(booking_id) in booking_ids:
             break
-        cprint("Invalid booking ID! retry.", "red")
+        u.print_retry("Invalid booking ID!")
     
     
-    query = f"""
-        DELETE FROM bookings
-        WHERE member_id = {member_id}
-        AND booking_id = {booking_id}
-    """
+    query = iq.delete_booking(member_id, booking_id)
+    
+    try:
+        cursor.execute(query)
+    except Error as err:
+        u.exitHandler(cursor, connection, err)
+    
+    connection.commit()
+    u.print_success("Booking Successfully Deleted")
+    cursor.close()
+    return True
+
+
+# Helper Function
+# =============================================================================
+def print_bookings(bookings):
+    if len(bookings) == 0:
+        u.print_prompt("No bookings to show\n")
+        time.sleep(2)
+        return True
+    
+    for booking in bookings:
+        for i, j in booking.items():
+            print(f"{i}: {j}")
+        print()
