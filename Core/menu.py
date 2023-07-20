@@ -67,13 +67,18 @@ def train_search(connection, member_id):
             cursor.execute(query)
         except Error as err:
             u.exitHandler(cursor, connection, err)
-        trains = cursor.fetchall()
         
+        # Print Trains
+        headers = [header[0] for header in cursor.description]
+        trains = [dict(zip(headers,row)) for row in cursor.fetchall()]
         if len(trains) == 0: 
             u.print_error("No trains found. Try Again with different filters")
-            
-        for i in trains:
-            print(i)
+            continue
+        
+        for train in trains:
+            for i, j in train.items():
+                print(f"{i}: {j}")
+            print()
         
         u.print_prompt("Enter Train ID to book.\n0 to start a new search.\nLeave blank to go to Home.")       
         train_id = input("Enter: ")
@@ -142,7 +147,12 @@ def getDay():
         if re.search(checkString, dateVal):
             d, m, y = [int(i) for i in dateVal.split("/")]
             try:
-                return date(y, m, d)
+                
+                input_date = date(y, m, d)
+                today = date.today()
+                if input_date >= today:
+                    u.print_success(f"date: {input_date}\n")
+                    return input_date
             except:
                 # Do Nothing
                 True

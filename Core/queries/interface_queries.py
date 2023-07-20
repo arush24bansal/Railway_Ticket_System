@@ -9,27 +9,39 @@ def fetch_trains(src_id, dest_id, date):
     return f"""
         WITH cte AS (
             SELECT
-                r1.train_id,
-                r2.distance - r1.distance AS 'distance',
-                r1.dept_time,
-                r2.arr_time,
-                r1.station_id AS 'dept_id',
-                r2.station_id AS 'arr_id',
-                r1.journey_day - 1 AS 'daynum'
-            FROM routes r1
-            JOIN routes r2
-            ON r1.train_id = r2.train_id
-            AND r1.station_id = {src_id}
-            AND r2.station_id = {dest_id}
-            AND r1.serial_no < r2.serial_no
+                src.train_id,
+                dest.distance - src.distance AS 'distance',
+                src.dept_time,
+                dest.arr_time,
+                src.station_id AS 'src_id',
+                dest.station_id AS 'dept_id',
+                DATE_ADD('{date}', INTERVAL (0 - src.journey_day) DAY)
+                AS 'train_start_date',
+                DATE_ADD('{date}', INTERVAL (dest.journey_day - src.journey_day) DAY)
+                AS 'dest_arr_date',
+                src.journey_day AS 'src_day',
+                dest.journey_day AS 'dest_day'
+            FROM routes src
+            JOIN routes dest
+            ON src.train_id = dest.train_id
+            AND src.station_id = {src_id}
+            AND dest.station_id = {dest_id}
+            AND src.serial_no < dest.serial_no
         ), cte2 AS (
-            SELECT c.*, t.op_days
+            SELECT
+                c.train_id AS 'Train ID',
+                t.train_no AS 'Train Number',
+                CONCAT('{date} ', dept_time) AS 'Departure',
+                CONCAT(c.dest_arr_date, ' ', arr_time) AS 'Arrival',
+                c.train_start_date,
+                c.distance,
+                c.src_day,
+                c.dest_day,
+                t.op_days
             FROM cte c
             JOIN trains t
             ON c.train_id = t.train_id
-            AND t.weekdays = WEEKDAY(
-                DATE_ADD('{date}',  INTERVAL (-1 * c.daynum) DAY)
-            )
+            AND t.weekdays = WEEKDAY(train_start_date)
         )
 
         SELECT * FROM cte2
