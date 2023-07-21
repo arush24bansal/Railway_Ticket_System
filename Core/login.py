@@ -6,68 +6,58 @@ Created on Fri Jul  7 19:41:33 2023
 """
 
 import Core.utils as u
-from mysql.connector import Error
 
 
 def auth(connection):
     
     u.print_header("Login")
+    
     # Get Phone Number
-    phone = get_phone()
+    while True:
+        phone = input("Mobile Number: ")
+        if phone.isnumeric() and len(phone) == 10:
+            break
+        u.print_error("invalid mobile number!", retry=True)
+    
+    # Create Cursor
+    cursor = connection.cursor()
     
     # Fetch User
-    user = fetch_user(connection, phone)
+    query = f"""
+            SELECT member_id, password, member_name FROM members
+            WHERE phone_no = '{phone}'
+        """
+    u.execute_query(cursor, connection, query)
+    data = cursor.fetchone()
     
-    if user:
+    # Authenticate
+    if data:
+        # Login
+        headers = [header[0] for header in cursor.description]
+        user = dict(zip(headers, data))
         return login(user)
     else:
-        return signup(connection, phone)
-   
+        # Signup
+        return signup(cursor, connection, phone)
+    cursor.close()
 
     
 # Helper Functions   
 # =============================================================================
-
-def get_phone():
-    while True:
-        phone = input("Mobile Number: ")
-    
-        if not phone.isnumeric() or len(phone) != 10:
-            u.print_retry("invalid mobile number!")
-            continue
-        return phone
-
-
-def fetch_user(connection, phone):
-    cursor = connection.cursor()
-    
-    query = f"""
-            SELECT member_id, phone_no, password, member_name FROM members
-            WHERE phone_no = '{phone}'
-        """
-        
-    try:
-        cursor.execute(query)
-    except Error as err:
-        u.exitHandler(cursor, connection, err)
-    
-    store = cursor.fetchone()
-    cursor.close()
-    return store
 
 
 def login(user):
     while True:
         pwd = input("Enter Password: ")
     
-        if pwd != user[2]:
-            u.print_retry("invalid Credentials!")
+        if pwd != user['password']:
+            u.print_error("invalid Credentials!", retry=True)
             continue
-        u.print_success(f"Succesfully Logged in. Welcome back {user[3]}")
-        return user[0]
+        u.print_success(f"Succesfully Logged in. Welcome back {user['member_name']}")
+        return user['member_id']
 
 
-def signup(connection, phone):
+def signup(cursor, connection, phone):
     while True:
         name = input("Enter your Name: ")
         
@@ -87,16 +77,10 @@ def signup(connection, phone):
         INSERT INTO members(phone_no, member_name, password)
         VALUES('{phone}', '{name}', '{pwd}')
     """
-    
-    cursor = connection.cursor()
-    
-    try: 
-        cursor.execute(query)
-    except Error as err: 
-        u.exitHandler(cursor, connection, err)
+    u.execute_query(cursor, connection, query)
     
     connection.commit()
-    store = cursor.lastrowid 
-    cursor.close()
     u.print_success(f"Succesfully Registered. Welcome {name}")
-    return store
+    return cursor.lastrowid 
+    
+    

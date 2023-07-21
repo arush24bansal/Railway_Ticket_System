@@ -17,9 +17,9 @@ u.print_title("Welcome to Indian Railways Reservation system")
 # Maintain Session
 while True:
     member_id = l.auth(database)
-    if i.interface(database, member_id):
+    if i.home(database, member_id):
         continue
     break
 
-print("Closing Program")
+u.print_prompt("Closing Program")
 database.close()

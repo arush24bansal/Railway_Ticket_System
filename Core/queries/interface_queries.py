@@ -57,7 +57,7 @@ def fetch_stations(keyword):
         WHERE station_name LIKE '{keyword}%'
     """
     
-def bookings_history(member_id):
+def bookings_all(member_id):
     return f"""
         SELECT
             b.booking_id AS 'Booking ID',
@@ -77,7 +77,7 @@ def bookings_history(member_id):
         ORDER BY b.booking_id ASC
     """
     
-def upcoming_bookings(member_id):
+def bookings_upcoming(member_id):
     return  f"""
          SELECT
              b.booking_id AS 'Booking ID',
