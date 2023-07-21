@@ -14,7 +14,8 @@ def auth(connection):
     
     # Get Phone Number
     while True:
-        phone = input("Mobile Number: ")
+        phone = "9909907558"
+        #input("Mobile Number: ")
         if phone.isnumeric() and len(phone) == 10:
             break
         u.print_error("invalid mobile number!", retry=True)
@@ -48,7 +49,8 @@ def auth(connection):
 
 def login(user):
     while True:
-        pwd = input("Enter Password: ")
+        pwd = "1234"
+        #input("Enter Password: ")
     
         if pwd != user['password']:
             u.print_error("invalid Credentials!", retry=True)

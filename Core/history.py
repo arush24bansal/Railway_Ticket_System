@@ -14,7 +14,7 @@ def history(connection, member_id):
     u.print_header("Bookings")
     
     # Get Bookings
-    query = iq.bookings_all(member_id)
+    query = iq.bookings(member_id)
     cursor = connection.cursor()
     u.execute_query(cursor, connection, query)
     
@@ -34,7 +34,7 @@ def cancel(connection, member_id):
     u.print_header("Cancel Tickets")
     
     #Get Bookings
-    query = iq.bookings_upcoming(member_id)
+    query = iq.bookings(member_id, upcoming=True)
     cursor = connection.cursor()
     u.execute_query(cursor, connection, query)
       
