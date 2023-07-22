@@ -62,12 +62,9 @@ def train_search(connection, member_id):
         elif train == 1:
             continue
         
-        # Check Availability
-        status = get_status(connection, train)
-        print(status)
         # Input number of tickets and book
-
-
+        book_tickets(connection, train, member_id, src[1], dest[1])
+        return
 
 
 # Get Stations
@@ -177,17 +174,59 @@ def get_train(connection, src, dest, dateVal):
             return 1
         
         if train_no.isnumeric() and int(train_no) in train_nums:
-            return list(filter(lambda x: x['Train Number'] == int(train_no), trains))[0]
-
+            train = list(filter(lambda x: x['Train Number'] == int(train_no), trains))[0]
+            available = get_availability(connection, train)
+            if available == 0:
+                continue
+            else:
+                train['Available'] = available
+                return train
+            
         u.print_error("Invalid Train Number.", retry=True)
         
 # Get Status
 # =============================================================================
-def get_status(connection, train):
+def get_availability(connection, train):
     cursor = connection.cursor()
     query = iq.check_status(train)
     u.execute_query(cursor, connection, query)
-    store = cursor.fetchall()
+    available = cursor.fetchone()
+    available = available[0] if available else 100
     cursor.close()
-    return store
     
+    if available != 0:
+        print()
+        for i in train:
+            print(f"{i}: {train[i]}")
+        u.print_success(f"Fare: {train['distance'] * 2}")
+        u.print_success(f"Tickets Available: {available}\n")
+    else:
+        u.print_error("No tickets Available. Try another train.")
+        
+    return available
+  
+# Booking
+# =============================================================================  
+def book_tickets(connection, train, member_id, src, dest):
+    cursor = connection.cursor()
+    
+    u.print_prompt("Enter number of tickets to book.\nLeave blank to go back to search")
+    while True:
+        tickets = input("Number of tickets: ")
+        
+        if tickets.isspace() and tickets == "":
+            return
+            
+        if not tickets.isnumeric():
+            u.print_error("Invalid Input. Retry.")
+            continue
+        if int(tickets) > train['Available']:
+            u.print_error("Ticket availability exceeded. Retry.")
+            continue
+            
+        query = iq.book_ticket(train, member_id, src, dest, int(tickets))
+        u.execute_query(cursor, connection, query)
+        connection.commit()
+        u.print_success("Booking Successful")
+        cursor.close()
+        break

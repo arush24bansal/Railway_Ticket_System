@@ -117,11 +117,34 @@ def check_status(train):
             AND b.destination_id = r2.station_id
             WHERE b.train_no = {train['Train Number']}
             AND train_start_date = '{train['train_start_date']}'
-        ), cte2 AS (
-            SELECT train_no, SUM(tickets)
-            FROM cte c
-            GROUP BY train_no
         )
         
-        SELECT * FROM cte2
+        SELECT 100 - SUM(tickets) AS 'available'
+        FROM cte
+        WHERE src_srn < {train['dest_srn']}
+        AND dest_srn > {train['src_srn']}
+        GROUP BY train_no
+
+    """
+
+def book_ticket(train, member_id, src, dest, tickets):
+    return f"""
+        INSERT INTO bookings (
+            member_id,
+            train_no,
+            train_start_date,
+            source_id,
+            destination_id,
+            amount,
+            tickets
+        )
+        VALUES (
+            {member_id},
+            {train['Train Number']},
+            '{train['train_start_date']}',
+            {src},
+            {dest},
+            {train['distance'] * 2 * tickets},
+            {tickets}
+        );
     """
